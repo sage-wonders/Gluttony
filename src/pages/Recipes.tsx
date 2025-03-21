@@ -530,12 +530,23 @@ export function Recipes() {
     const missingIngredients = recipe.ingredients.filter(ingredient => !checkIngredientInStock(ingredient.name));
     try {
       for (const ingredient of missingIngredients) {
-        await addDoc(collection(db, 'shoppingLists', currentList.id, 'items'), {
-          name: ingredient.name,
-          category: 'Ingredients',
-          completed: false,
-          products: []
-        });
+        const existingItem = await getDocs(query(collection(db, 'shoppingLists', currentList.id, 'items'), where('name', '==', ingredient.name)));
+        if (!existingItem.empty) {
+          const existingItemData = existingItem.docs[0].data();
+          const updatedQuantity = existingItemData.quantity + ingredient.quantity;
+          await updateDoc(doc(db, 'shoppingLists', currentList.id, 'items', existingItem.docs[0].id), {
+            quantity: updatedQuantity
+          });
+        } else {
+          await addDoc(collection(db, 'shoppingLists', currentList.id, 'items'), {
+            name: ingredient.name,
+            category: 'Ingredients',
+            completed: false,
+            quantity: ingredient.quantity,
+            unit: ingredient.unit,
+            products: []
+          });
+        }
       }
       alert('Missing ingredients added to the shopping list!');
     } catch (error) {
