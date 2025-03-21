@@ -19,6 +19,8 @@ interface ShoppingItem {
   name: string;
   category: string;
   completed: boolean;
+  quantity: number; // Added quantity
+  unit: string; // Added unit
   products: ProductVariant[];
 }
 
@@ -42,6 +44,8 @@ interface EditModalProps {
 function AddItemModal({ onClose, onSave }: AddModalProps) {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
+  const [quantity, setQuantity] = useState(1); // Added quantity
+  const [unit, setUnit] = useState('count'); // Added unit
   const [products, setProducts] = useState<Omit<ProductVariant, 'id'>[]>([]);
   const [currentProduct, setCurrentProduct] = useState({
     productName: '',
@@ -71,6 +75,8 @@ function AddItemModal({ onClose, onSave }: AddModalProps) {
       name,
       category,
       completed: false,
+      quantity,
+      unit,
       products: products.map((p, index) => ({ ...p, id: `temp-${index}` }))
     });
   };
@@ -105,6 +111,33 @@ function AddItemModal({ onClose, onSave }: AddModalProps) {
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             required
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Quantity</label>
+          <input
+            type="number"
+            value={quantity}
+            onChange={(e) => setQuantity(parseFloat(e.target.value))}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Unit</label>
+          <select
+            value={unit}
+            onChange={(e) => setUnit(e.target.value)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          >
+            <option value="cups">cups</option>
+            <option value="teaspoon">teaspoon</option>
+            <option value="tablespoon">tablespoon</option>
+            <option value="oz">oz</option>
+            <option value="lbs">lbs</option>
+            <option value="count">count</option>
+          </select>
         </div>
 
         <div className="border-t pt-4">
@@ -275,14 +308,30 @@ function EditItemModal({ item, onClose, onSave }: EditModalProps) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Category</label>
+          <label className="block text-sm font-medium text-gray-700">Quantity</label>
           <input
-            type="text"
-            value={editedItem.category}
-            onChange={(e) => setEditedItem({ ...editedItem, category: e.target.value })}
+            type="number"
+            value={editedItem.quantity}
+            onChange={(e) => setEditedItem({ ...editedItem, quantity: parseFloat(e.target.value) })}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             required
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Unit</label>
+          <select
+            value={editedItem.unit}
+            onChange={(e) => setEditedItem({ ...editedItem, unit: e.target.value })}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          >
+            <option value="cups">cups</option>
+            <option value="teaspoon">teaspoon</option>
+            <option value="tablespoon">tablespoon</option>
+            <option value="oz">oz</option>
+            <option value="lbs">lbs</option>
+            <option value="count">count</option>
+          </select>
         </div>
 
         <div className="border-t pt-4">
@@ -425,7 +474,6 @@ export function ShoppingList() {
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [showVariants, setShowVariants] = useState<{ [key: string]: boolean }>({});
 
-  // Function to fetch items for a specific list
   const fetchItems = async (listId: string) => {
     try {
       const querySnapshot = await getDocs(collection(db, 'shoppingLists', listId, 'items'));
@@ -433,7 +481,7 @@ export function ShoppingList() {
         id: doc.id,
         ...doc.data()
       } as ShoppingItem));
-      setItems(itemsData.sort((a, b) => a.name.localeCompare(b.name))); // Sort items alphabetically
+      setItems(itemsData.sort((a, b) => a.name.localeCompare(b.name)));
     } catch (error) {
       console.error('Error fetching items:', error);
     }
@@ -450,7 +498,7 @@ export function ShoppingList() {
         setShoppingLists(lists);
         if (lists.length > 0) {
           setCurrentList(lists[0]);
-          fetchItems(lists[0].id); // Fetch items for the first list by default
+          fetchItems(lists[0].id);
         }
       } catch (error) {
         console.error('Error fetching shopping lists:', error);
@@ -460,14 +508,12 @@ export function ShoppingList() {
     fetchShoppingLists();
   }, []);
 
-  // Handle list selection from dropdown
   const handleListSelect = (list: ShoppingList) => {
     setCurrentList(list);
     setIsListDropdownOpen(false);
-    fetchItems(list.id); // Fetch items for the selected list
+    fetchItems(list.id);
   };
 
-  // Handle adding a new list
   const handleAddList = async (listName: string) => {
     try {
       const newList = { name: listName, items: [] };
@@ -475,31 +521,29 @@ export function ShoppingList() {
       const newListWithId = { ...newList, id: docRef.id };
       setShoppingLists([...shoppingLists, newListWithId]);
       setCurrentList(newListWithId);
-      fetchItems(newListWithId.id); // Fetch items for the newly created list
+      fetchItems(newListWithId.id);
     } catch (error) {
       console.error('Error adding shopping list:', error);
     }
   };
 
-  // Handle adding a new item to the current list
   const handleAddItem = async (newItem: Omit<ShoppingItem, 'id'>) => {
     if (!currentList) return;
     try {
       const docRef = await addDoc(collection(db, 'shoppingLists', currentList.id, 'items'), newItem);
       const newItemWithId = { ...newItem, id: docRef.id };
-      setItems([...items, newItemWithId].sort((a, b) => a.name.localeCompare(b.name))); // Sort items alphabetically
+      setItems([...items, newItemWithId].sort((a, b) => a.name.localeCompare(b.name)));
       setIsAddModalOpen(false);
     } catch (error) {
       console.error('Error adding shopping item:', error);
     }
   };
 
-  // Handle saving edits to an item
   const handleSaveEdit = async (editedItem: ShoppingItem) => {
     if (!currentList) return;
     try {
       await updateDoc(doc(db, 'shoppingLists', currentList.id, 'items', editedItem.id), editedItem);
-      setItems(items.map(item => item.id === editedItem.id ? editedItem : item).sort((a, b) => a.name.localeCompare(b.name))); // Sort items alphabetically
+      setItems(items.map(item => item.id === editedItem.id ? editedItem : item).sort((a, b) => a.name.localeCompare(b.name)));
       setIsEditModalOpen(false);
       setSelectedItem(null);
     } catch (error) {
@@ -507,19 +551,17 @@ export function ShoppingList() {
     }
   };
 
-  // Handle toggling item completion
   const toggleComplete = async (item: ShoppingItem) => {
     if (!currentList) return;
     try {
       const updatedItem = { ...item, completed: !item.completed };
       await updateDoc(doc(db, 'shoppingLists', currentList.id, 'items', item.id), { completed: !item.completed });
-      setItems(items.map(i => i.id === item.id ? updatedItem : i).sort((a, b) => a.name.localeCompare(b.name))); // Sort items alphabetically
+      setItems(items.map(i => i.id === item.id ? updatedItem : i).sort((a, b) => a.name.localeCompare(b.name)));
     } catch (error) {
       console.error('Error toggling item completion:', error);
     }
   };
 
-  // Handle toggling variant visibility
   const toggleVariantVisibility = (itemId: string) => {
     setShowVariants(prev => ({
       ...prev,
@@ -527,7 +569,6 @@ export function ShoppingList() {
     }));
   };
 
-  // Handle selecting items for deletion
   const handleSelectItem = (itemId: string) => {
     setSelectedItems(prev =>
       prev.includes(itemId)
@@ -536,26 +577,24 @@ export function ShoppingList() {
     );
   };
 
-  // Handle deleting selected items
   const handleDeleteSelected = async () => {
     if (!currentList || selectedItems.length === 0) return;
     try {
       for (const itemId of selectedItems) {
         await deleteDoc(doc(db, 'shoppingLists', currentList.id, 'items', itemId));
       }
-      setItems(items.filter(item => !selectedItems.includes(item.id)).sort((a, b) => a.name.localeCompare(b.name))); // Sort items alphabetically
+      setItems(items.filter(item => !selectedItems.includes(item.id)).sort((a, b) => a.name.localeCompare(b.name)));
       setSelectedItems([]);
     } catch (error) {
       console.error('Error deleting selected items:', error);
     }
   };
 
-  // Handle deleting a single item
   const handleDeleteItem = async (itemId: string) => {
     if (!currentList) return;
     try {
       await deleteDoc(doc(db, 'shoppingLists', currentList.id, 'items', itemId));
-      setItems(items.filter(item => item.id !== itemId).sort((a, b) => a.name.localeCompare(b.name))); // Sort items alphabetically
+      setItems(items.filter(item => item.id !== itemId).sort((a, b) => a.name.localeCompare(b.name)));
     } catch (error) {
       console.error('Error deleting item:', error);
     }
@@ -638,7 +677,7 @@ export function ShoppingList() {
                     className="h-5 w-5 text-blue-600"
                   />
                   <span className={item.completed ? 'line-through text-gray-500' : 'font-medium'}>
-                    {item.name}
+                    {item.name} - {item.quantity} {item.unit}
                   </span>
                   <span className="text-sm text-gray-500">{item.category}</span>
                 </div>
